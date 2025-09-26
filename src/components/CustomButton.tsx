@@ -1,6 +1,17 @@
-import { Pressable, Text, StyleSheet, PressableProps, ViewStyle } from 'react-native';
+// src/components/CustomButton.tsx
+import React from 'react';
+import {
+    Pressable,
+    Text,
+    StyleSheet,
+    PressableProps,
+    ViewStyle,
+    TextStyle,
+    PressableStateCallbackType
+} from 'react-native';
+import { useTheme } from '@/contexts/ThemeContext';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success';
 type ButtonSize = 'small' | 'medium' | 'large';
 
 type CustomButtonProps = {
@@ -8,7 +19,10 @@ type CustomButtonProps = {
     variant?: ButtonVariant;
     size?: ButtonSize;
     fullWidth?: boolean;
-} & PressableProps;
+    icon?: React.ReactNode;
+} & Omit<PressableProps, 'style'> & {
+    style?: ViewStyle | ViewStyle[];
+};
 
 export default function CustomButton({
                                          text,
@@ -17,165 +31,166 @@ export default function CustomButton({
                                          fullWidth = false,
                                          disabled,
                                          style,
+                                         icon,
                                          ...props
                                      }: CustomButtonProps) {
+    const { colors, isDark } = useTheme();
 
     const getButtonStyle = (): ViewStyle => {
-        const baseStyle = [
-            styles.button,
-            styles[`${variant}Button`],
-            styles[`${size}Button`],
-            fullWidth && styles.fullWidth,
-            disabled && styles.disabled,
-        ];
+        const baseStyle: ViewStyle = {
+            borderRadius: size === 'small' ? 8 : size === 'medium' ? 12 : 16,
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'row',
+            gap: icon ? 8 : 0,
+            borderWidth: variant === 'outline' ? 2 : 0,
+            shadowColor: colors.shadow,
+            shadowOffset: {
+                width: 0,
+                height: variant === 'ghost' ? 0 : 2,
+            },
+            shadowOpacity: variant === 'ghost' ? 0 : 0.1,
+            shadowRadius: variant === 'ghost' ? 0 : 4,
+            elevation: variant === 'ghost' ? 0 : 2,
+        };
 
-        return StyleSheet.flatten([baseStyle, style]) as ViewStyle;
+        // Size-specific styles
+        const sizeStyles: Record<ButtonSize, ViewStyle> = {
+            small: {
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                minHeight: 32,
+            },
+            medium: {
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                minHeight: 44,
+            },
+            large: {
+                paddingHorizontal: 20,
+                paddingVertical: 16,
+                minHeight: 52,
+            },
+        };
+
+        // Variant-specific styles
+        const variantStyles: Record<ButtonVariant, ViewStyle> = {
+            primary: {
+                backgroundColor: colors.primary,
+                borderColor: colors.primary,
+            },
+            secondary: {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+            },
+            outline: {
+                backgroundColor: 'transparent',
+                borderColor: colors.primary,
+            },
+            ghost: {
+                backgroundColor: 'transparent',
+                borderColor: 'transparent',
+            },
+            danger: {
+                backgroundColor: colors.error,
+                borderColor: colors.error,
+            },
+            success: {
+                backgroundColor: colors.success,
+                borderColor: colors.success,
+            },
+        };
+
+        return {
+            ...baseStyle,
+            ...sizeStyles[size],
+            ...variantStyles[variant],
+            ...(fullWidth && { width: '100%' }),
+            ...(disabled && {
+                opacity: 0.6,
+                shadowOpacity: 0,
+                elevation: 0,
+            }),
+        };
     };
 
-    const getTextStyle = () => [
-        styles.buttonText,
-        styles[`${variant}Text`],
-        styles[`${size}Text`],
-        disabled && styles.disabledText,
-    ];
+    const getTextStyle = (): TextStyle => {
+        const baseStyle: TextStyle = {
+            fontWeight: '600',
+            textAlign: 'center',
+        };
+
+        // Size-specific text styles
+        const sizeStyles: Record<ButtonSize, TextStyle> = {
+            small: { fontSize: 14 },
+            medium: { fontSize: 16 },
+            large: { fontSize: 18 },
+        };
+
+        // Variant-specific text styles
+        const variantStyles: Record<ButtonVariant, TextStyle> = {
+            primary: { color: '#FFFFFF' },
+            secondary: { color: colors.text },
+            outline: { color: colors.primary },
+            ghost: { color: colors.primary },
+            danger: { color: '#FFFFFF' },
+            success: { color: '#FFFFFF' },
+        };
+
+        return {
+            ...baseStyle,
+            ...sizeStyles[size],
+            ...variantStyles[variant],
+            ...(disabled && { color: colors.textTertiary }),
+        };
+    };
+
+    const getPressedStyle = (): ViewStyle => {
+        const variantPressed: Record<ButtonVariant, ViewStyle> = {
+            primary: { backgroundColor: colors.primaryDark },
+            secondary: { backgroundColor: colors.backgroundTertiary },
+            outline: { backgroundColor: `${colors.primary}10` },
+            ghost: { backgroundColor: `${colors.primary}10` },
+            danger: { backgroundColor: '#DC2626' },
+            success: { backgroundColor: '#059669' },
+        };
+
+        return {
+            transform: [{ scale: 0.98 }],
+            ...variantPressed[variant],
+        };
+
+    };
+
+    const buttonStyle = getButtonStyle();
+    const textStyle = getTextStyle();
+    const pressedStyle = getPressedStyle();
+
+    // Create the style function for Pressable
+    const createPressableStyle = ({ pressed }: PressableStateCallbackType): ViewStyle | ViewStyle[] => {
+        const baseStyles = [buttonStyle];
+
+        if (Array.isArray(style)) {
+            baseStyles.push(...style);
+        } else if (style) {
+            baseStyles.push(style);
+        }
+
+        if (pressed && !disabled) {
+            baseStyles.push(pressedStyle);
+        }
+
+        return baseStyles;
+    };
 
     return (
         <Pressable
             {...props}
             disabled={disabled}
-            style={({ pressed }) => [
-                getButtonStyle(),
-                pressed && !disabled && styles.pressed,
-                pressed && !disabled && styles[`${variant}Pressed`],
-            ]}
+            style={createPressableStyle}
         >
-            <Text style={getTextStyle()}>{text}</Text>
+            {icon}
+            <Text style={textStyle}>{text}</Text>
         </Pressable>
     );
 }
-
-const styles = StyleSheet.create({
-    // Base button styles
-    button: {
-        borderRadius: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: 'transparent',
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        elevation: 2,
-    },
-
-    // Size variants
-    smallButton: {
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        minHeight: 32,
-    },
-    mediumButton: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        minHeight: 44,
-    },
-    largeButton: {
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        minHeight: 52,
-    },
-
-    // Full width
-    fullWidth: {
-        width: '100%',
-    },
-
-    // Color variants
-    primaryButton: {
-        backgroundColor: '#4353FD',
-    },
-    secondaryButton: {
-        backgroundColor: '#F1F5F9',
-        borderColor: '#E2E8F0',
-    },
-    outlineButton: {
-        backgroundColor: 'transparent',
-        borderColor: '#4353FD',
-    },
-    ghostButton: {
-        backgroundColor: 'transparent',
-        shadowOpacity: 0,
-        elevation: 0,
-    },
-    dangerButton: {
-        backgroundColor: '#EF4444',
-    },
-
-    // Base text styles
-    buttonText: {
-        fontWeight: '600',
-        textAlign: 'center',
-    },
-
-    // Text size variants
-    smallText: {
-        fontSize: 14,
-    },
-    mediumText: {
-        fontSize: 16,
-    },
-    largeText: {
-        fontSize: 18,
-    },
-
-    // Text color variants
-    primaryText: {
-        color: '#FFFFFF',
-    },
-    secondaryText: {
-        color: '#475569',
-    },
-    outlineText: {
-        color: '#4353FD',
-    },
-    ghostText: {
-        color: '#4353FD',
-    },
-    dangerText: {
-        color: '#FFFFFF',
-    },
-
-    // Pressed states
-    pressed: {
-        transform: [{ scale: 0.98 }],
-    },
-    primaryPressed: {
-        backgroundColor: '#3B47E6',
-    },
-    secondaryPressed: {
-        backgroundColor: '#E2E8F0',
-    },
-    outlinePressed: {
-        backgroundColor: '#F0F4FF',
-    },
-    ghostPressed: {
-        backgroundColor: '#F0F4FF',
-    },
-    dangerPressed: {
-        backgroundColor: '#DC2626',
-    },
-
-    // Disabled states
-    disabled: {
-        opacity: 0.6,
-        shadowOpacity: 0,
-        elevation: 0,
-    },
-    disabledText: {
-        color: '#94A3B8',
-    },
-});

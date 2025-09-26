@@ -16,36 +16,21 @@ import {
     Dimensions,
     Modal,
     TouchableWithoutFeedback,
+    ViewStyle,
+    TextStyle,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useSession } from '@clerk/clerk-expo';
 import { router } from "expo-router";
-// Add icon imports if using expo-vector-icons
-// import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-/**
- * Enhanced AnalyzePhotoScreen with improved styling
- * Features:
- * - Modern gradient backgrounds
- * - Smooth animations
- * - Better visual hierarchy
- * - Glass morphism effects
- * - Improved spacing and typography
- */
-
-// ----- Types -----
+// Types (same as before)
 type HazardCategory =
-    | "PPE"
-    | "Fall"
-    | "Fire"
-    | "Electrical"
-    | "Chemical"
-    | "Machinery"
-    | "Environmental"
-    | "Other";
+    | "PPE" | "Fall" | "Fire" | "Electrical" | "Chemical" | "Machinery" | "Environmental" | "Other";
 
 type Severity = "Critical" | "High" | "Medium" | "Low";
 type SafetyGrade = "A" | "B" | "C" | "D" | "F";
@@ -117,31 +102,44 @@ const AnalyzePhotoScreen: React.FC<AnalyzePhotoScreenProps> = ({
                                                                    tokenTemplate,
                                                                }) => {
     const { session } = useSession();
+    const { colors, isDark } = useTheme();
 
     // Animation values
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(50)).current;
     const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
-    // image state
+    // State
     const [imageUri, setImageUri] = useState<string | null>(null);
     const [imageBase64, setImageBase64] = useState<string | null>(null);
     const [mimeType, setMimeType] = useState<string>("image/jpeg");
     const [showImageModal, setShowImageModal] = useState(false);
-
-    // progress state
     const [uploading, setUploading] = useState(false);
     const [analyzing, setAnalyzing] = useState(false);
-
-    // result/error
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<AnalysisResult | null>(null);
-
-    // recent inspections
     const [listLoading, setListLoading] = useState(false);
     const [recent, setRecent] = useState<ListResponse["inspections"]>([]);
 
     const hasImage = !!imageUri && !!imageBase64;
+
+    // Styles
+    const containerStyle: ViewStyle = {
+        flex: 1,
+        backgroundColor: colors.background,
+    };
+
+    const scrollContentStyle: ViewStyle = {
+        paddingTop: Platform.select({ ios: 60, android: 40, default: 40 }),
+        paddingHorizontal: 16,
+        paddingBottom: 80,
+    };
+
+    const centeredContentStyle: ViewStyle = {
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: 20,
+    };
 
     // Animations on mount
     useEffect(() => {
@@ -165,7 +163,7 @@ const AnalyzePhotoScreen: React.FC<AnalyzePhotoScreenProps> = ({
         ]).start();
     }, []);
 
-    // Get authentication token from Clerk session
+    // Authentication functions (same as before)
     const getAuthToken = async (): Promise<string | null> => {
         if (!session) {
             console.warn("No active Clerk session found.");
@@ -181,7 +179,6 @@ const AnalyzePhotoScreen: React.FC<AnalyzePhotoScreenProps> = ({
         }
     };
 
-    // Build auth headers with JWT token
     const buildAuthHeaders = async (init?: Record<string, string>) => {
         const headers: Record<string, string> = {
             "Content-Type": "application/json",
@@ -189,18 +186,15 @@ const AnalyzePhotoScreen: React.FC<AnalyzePhotoScreenProps> = ({
         };
 
         const token = await getAuthToken();
-
         if (!token) {
-            throw new Error(
-                "Authentication required. Please ensure you're logged in with Clerk."
-            );
+            throw new Error("Authentication required. Please ensure you're logged in with Clerk.");
         }
 
         headers["Authorization"] = `Bearer ${token}`;
         return headers;
     };
 
-    // Optional client-side compression
+    // Image processing functions (same as before)
     async function compressClientSide(uri: string, maxSide = 1600, quality = 0.7) {
         const r = await ImageManipulator.manipulateAsync(
             uri,
@@ -215,7 +209,6 @@ const AnalyzePhotoScreen: React.FC<AnalyzePhotoScreenProps> = ({
         };
     }
 
-    // Camera
     const handleTakePhoto = async () => {
         setError(null);
         const cam = await ImagePicker.requestCameraPermissionsAsync();
@@ -251,7 +244,6 @@ const AnalyzePhotoScreen: React.FC<AnalyzePhotoScreenProps> = ({
         }
     };
 
-    // Gallery
     const handlePickFromGallery = async () => {
         setError(null);
         const lib = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -286,7 +278,6 @@ const AnalyzePhotoScreen: React.FC<AnalyzePhotoScreenProps> = ({
         }
     };
 
-    // Upload → Analyze
     const analyze = async () => {
         if (!hasImage) {
             Alert.alert("No image", "Please take or select a photo first.");
@@ -302,7 +293,6 @@ const AnalyzePhotoScreen: React.FC<AnalyzePhotoScreenProps> = ({
         setResult(null);
 
         try {
-            // 1) Upload to server
             setUploading(true);
             const uploadHeaders = await buildAuthHeaders();
             const uploadResp = await fetch(`${apiBaseUrl}/api/uploads/base64`, {
@@ -331,7 +321,6 @@ const AnalyzePhotoScreen: React.FC<AnalyzePhotoScreenProps> = ({
             const imageUrl: string = upJson.url;
             setUploading(false);
 
-            // 2) Analyze by URL
             setAnalyzing(true);
             const analyzeHeaders = await buildAuthHeaders();
             const analyzeResp = await fetch(`${apiBaseUrl}/api/inspections/analyze`, {
@@ -367,7 +356,6 @@ const AnalyzePhotoScreen: React.FC<AnalyzePhotoScreenProps> = ({
         }
     };
 
-    // Recent inspections
     const fetchRecent = async () => {
         if (!session) return;
 
@@ -394,7 +382,6 @@ const AnalyzePhotoScreen: React.FC<AnalyzePhotoScreenProps> = ({
         }
     }, [session]);
 
-    // Group hazards for sections
     const sections = useMemo(() => {
         if (!result?.hazards?.length) return [];
         const map = new Map<HazardCategory, Hazard[]>();
@@ -408,19 +395,10 @@ const AnalyzePhotoScreen: React.FC<AnalyzePhotoScreenProps> = ({
             .map(([title, data]) => ({ title, data }));
     }, [result]);
 
-    // Show login message if no session
     if (!session) {
         return (
-            <View style={[styles.container, styles.centeredContent]}>
-                <View style={styles.authCard}>
-                    <View style={styles.iconContainer}>
-                        <Text style={styles.lockIcon}>🔒</Text>
-                    </View>
-                    <Text style={styles.authTitle}>Authentication Required</Text>
-                    <Text style={styles.authSubtitle}>
-                        Please sign in to access the AI-powered safety analysis features
-                    </Text>
-                </View>
+            <View style={[containerStyle, centeredContentStyle]}>
+                <AuthCard />
             </View>
         );
     }
@@ -428,8 +406,8 @@ const AnalyzePhotoScreen: React.FC<AnalyzePhotoScreenProps> = ({
     return (
         <>
             <ScrollView
-                style={styles.container}
-                contentContainerStyle={styles.scrollContent}
+                style={containerStyle}
+                contentContainerStyle={scrollContentStyle}
                 showsVerticalScrollIndicator={false}
             >
                 <Animated.View
@@ -441,185 +419,152 @@ const AnalyzePhotoScreen: React.FC<AnalyzePhotoScreenProps> = ({
                         ],
                     }}
                 >
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <Text style={styles.headerTitle}>Safety Analysis</Text>
-                        <Text style={styles.headerSubtitle}>AI-powered hazard detection</Text>
-                    </View>
+                    <Header />
 
-                    {/* Step 2 — Take/Upload Photo */}
                     <StepCard
-                        number="2"
+                        number="1"
                         title="Capture Image"
                         description="Take a photo or select from gallery"
                     >
-                        <View style={styles.buttonRow}>
-                            <ActionButton
-                                icon="📷"
-                                title="Camera"
-                                subtitle="Take photo"
-                                onPress={handleTakePhoto}
-                                primary
-                            />
-                            <ActionButton
-                                icon="🖼️"
-                                title="Gallery"
-                                subtitle="Choose photo"
-                                onPress={handlePickFromGallery}
-                            />
-                        </View>
+                        <ActionButtons
+                            onTakePhoto={handleTakePhoto}
+                            onPickFromGallery={handlePickFromGallery}
+                        />
 
                         {imageUri ? (
-                            <Pressable
-                                style={styles.imagePreviewCard}
+                            <ImagePreview
+                                imageUri={imageUri}
                                 onPress={() => setShowImageModal(true)}
-                            >
-                                <Image
-                                    source={{ uri: imageUri }}
-                                    style={styles.imagePreview}
-                                    resizeMode="cover"
-                                />
-                                <View style={styles.imageOverlay}>
-                                    <Text style={styles.imageOverlayText}>Tap to enlarge</Text>
-                                </View>
-                            </Pressable>
+                            />
                         ) : (
-                            <View style={styles.emptyState}>
-                                <Text style={styles.emptyStateIcon}>📸</Text>
-                                <Text style={styles.emptyStateText}>No image selected</Text>
-                            </View>
+                            <EmptyImageState />
                         )}
                     </StepCard>
 
-                    {/* Step 3 — AI Analysis */}
                     <StepCard
-                        number="3"
+                        number="2"
                         title="AI Analysis"
                         description="Process image for safety hazards"
                     >
-                        <TouchableOpacity
+                        <AnalyzeButton
                             onPress={analyze}
                             disabled={!hasImage || uploading || analyzing}
-                            style={[
-                                styles.analyzeButton,
-                                (!hasImage || uploading || analyzing) && styles.analyzeButtonDisabled
-                            ]}
-                        >
-                            {(uploading || analyzing) ? (
-                                <ActivityIndicator color="#fff" size="small" />
-                            ) : (
-                                <Text style={styles.analyzeButtonIcon}>🔍</Text>
-                            )}
-                            <Text style={styles.analyzeButtonText}>
-                                {uploading ? "Uploading..." : analyzing ? "Analyzing..." : "Start Analysis"}
-                            </Text>
-                        </TouchableOpacity>
+                            uploading={uploading}
+                            analyzing={analyzing}
+                        />
 
-                        {error && (
-                            <View style={styles.errorCard}>
-                                <Text style={styles.errorIcon}>⚠️</Text>
-                                <Text style={styles.errorText}>{error}</Text>
-                            </View>
-                        )}
+                        {error && <ErrorCard error={error} />}
                     </StepCard>
 
-                    {/* Step 4 — View Results */}
                     {result && (
                         <StepCard
-                            number="4"
+                            number="3"
                             title="Analysis Results"
                             description="Safety assessment complete"
                         >
-                            <View style={styles.assessmentCard}>
-                                <View style={styles.assessmentHeader}>
-                                    <Text style={styles.assessmentTitle}>Overall Assessment</Text>
-                                    <GradeBadge grade={result.overallAssessment.safetyGrade} />
-                                </View>
+                            <AssessmentCard result={result} />
 
-                                <View style={styles.metricsGrid}>
-                                    <MetricCard
-                                        icon="⚡"
-                                        label="Risk Score"
-                                        value={String(result.overallAssessment.riskScore)}
-                                        color="#ef4444"
-                                    />
-                                    <MetricCard
-                                        icon="🛡️"
-                                        label="Confidence"
-                                        value={`${result.metadata.confidence}%`}
-                                        color="#10b981"
-                                    />
-                                    <MetricCard
-                                        icon="⚠️"
-                                        label="Hazards"
-                                        value={String(result.hazards.length)}
-                                        color="#f59e0b"
-                                    />
-                                </View>
-                            </View>
-
-                            {/* Hazard Categories */}
                             {sections.map((section) => (
-                                <View key={section.title} style={styles.hazardSection}>
-                                    <View style={styles.sectionHeader}>
-                                        <Text style={styles.sectionTitle}>
-                                            {getCategoryIcon(section.title)} {section.title}
-                                        </Text>
-                                        <Text style={styles.sectionCount}>
-                                            {section.data.length} issue{section.data.length !== 1 ? 's' : ''}
-                                        </Text>
-                                    </View>
-                                    {section.data.map((hazard) => (
-                                        <EnhancedHazardCard key={hazard.id} hazard={hazard} />
-                                    ))}
-                                </View>
+                                <HazardSection key={section.title} section={section} />
                             ))}
                         </StepCard>
                     )}
 
-                    {/* Recent Analyses */}
-                    {recent.length > 0 && (
-                        <View style={styles.recentSection}>
-                            <Text style={styles.recentTitle}>Recent Analyses</Text>
-                            <FlatList
-                                data={recent}
-                                keyExtractor={(item) => item.id}
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={styles.recentList}
-                                renderItem={({ item }) => (
-                                    <RecentCard item={item} onPress={() => router.push(`/inspection/${item.id}`)} />
-                                )}
-                            />
-                        </View>
-                    )}
+                    {recent.length > 0 && <RecentSection recent={recent} />}
                 </Animated.View>
             </ScrollView>
 
-            {/* Image Modal */}
-            <Modal
+            <ImageModal
                 visible={showImageModal}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowImageModal(false)}
-            >
-                <TouchableWithoutFeedback onPress={() => setShowImageModal(false)}>
-                    <View style={styles.modalOverlay}>
-                        <Image
-                            source={{ uri: imageUri }}
-                            style={styles.modalImage}
-                            resizeMode="contain"
-                        />
-                    </View>
-                </TouchableWithoutFeedback>
-            </Modal>
+                imageUri={imageUri}
+                onClose={() => setShowImageModal(false)}
+            />
         </>
     );
 };
 
 export default AnalyzePhotoScreen;
 
-/* -------------------- UI Components -------------------- */
+// Component definitions
+function AuthCard() {
+    const { colors } = useTheme();
+
+    const cardStyle: ViewStyle = {
+        backgroundColor: colors.surface,
+        borderRadius: 24,
+        padding: 32,
+        alignItems: "center",
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 5,
+    };
+
+    const iconContainerStyle: ViewStyle = {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.backgroundTertiary,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: 20,
+    };
+
+    const titleStyle: TextStyle = {
+        fontSize: 24,
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 8,
+    };
+
+    const subtitleStyle: TextStyle = {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
+        lineHeight: 22,
+    };
+
+    return (
+        <View style={cardStyle}>
+            <View style={iconContainerStyle}>
+                <Ionicons name="lock-closed" size={40} color={colors.primary} />
+            </View>
+            <Text style={titleStyle}>Authentication Required</Text>
+            <Text style={subtitleStyle}>
+                Please sign in to access the AI-powered safety analysis features
+            </Text>
+        </View>
+    );
+}
+
+function Header() {
+    const { colors } = useTheme();
+
+    const headerStyle: ViewStyle = {
+        marginBottom: 24,
+    };
+
+    const titleStyle: TextStyle = {
+        fontSize: 32,
+        fontWeight: "800",
+        color: colors.text,
+        marginBottom: 4,
+    };
+
+    const subtitleStyle: TextStyle = {
+        fontSize: 16,
+        color: colors.textSecondary,
+    };
+
+    return (
+        <View style={headerStyle}>
+            <Text style={titleStyle}>Safety Analysis</Text>
+            <Text style={subtitleStyle}>AI-powered hazard detection</Text>
+        </View>
+    );
+}
+
 function StepCard({
                       number,
                       title,
@@ -631,48 +576,379 @@ function StepCard({
     description: string;
     children: React.ReactNode;
 }) {
+    const { colors } = useTheme();
+
+    const cardStyle: ViewStyle = {
+        backgroundColor: colors.surface,
+        borderRadius: 20,
+        marginBottom: 20,
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 3,
+        overflow: "hidden",
+    };
+
+    const headerStyle: ViewStyle = {
+        flexDirection: "row",
+        alignItems: "center",
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderLight,
+    };
+
+    const numberStyle: ViewStyle = {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: colors.primary,
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: 16,
+    };
+
+    const numberTextStyle: TextStyle = {
+        fontSize: 20,
+        fontWeight: "700",
+        color: "#fff",
+    };
+
+    const infoStyle: ViewStyle = {
+        flex: 1,
+    };
+
+    const titleStyle: TextStyle = {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 2,
+    };
+
+    const descriptionStyle: TextStyle = {
+        fontSize: 14,
+        color: colors.textSecondary,
+    };
+
+    const contentStyle: ViewStyle = {
+        padding: 20,
+    };
+
     return (
-        <View style={styles.stepCard}>
-            <View style={styles.stepHeader}>
-                <View style={styles.stepNumber}>
-                    <Text style={styles.stepNumberText}>{number}</Text>
+        <View style={cardStyle}>
+            <View style={headerStyle}>
+                <View style={numberStyle}>
+                    <Text style={numberTextStyle}>{number}</Text>
                 </View>
-                <View style={styles.stepInfo}>
-                    <Text style={styles.stepTitle}>{title}</Text>
-                    <Text style={styles.stepDescription}>{description}</Text>
+                <View style={infoStyle}>
+                    <Text style={titleStyle}>{title}</Text>
+                    <Text style={descriptionStyle}>{description}</Text>
                 </View>
             </View>
-            <View style={styles.stepContent}>{children}</View>
+            <View style={contentStyle}>{children}</View>
         </View>
     );
 }
 
-function ActionButton({
-                          icon,
-                          title,
-                          subtitle,
-                          onPress,
-                          primary = false
-                      }: {
-    icon: string;
-    title: string;
-    subtitle: string;
-    onPress: () => void;
-    primary?: boolean;
+function ActionButtons({
+                           onTakePhoto,
+                           onPickFromGallery
+                       }: {
+    onTakePhoto: () => void;
+    onPickFromGallery: () => void;
 }) {
+    const { colors } = useTheme();
+
+    const rowStyle: ViewStyle = {
+        flexDirection: "row",
+        gap: 12,
+        marginBottom: 16,
+    };
+
+    const buttonStyle: ViewStyle = {
+        flex: 1,
+        backgroundColor: colors.backgroundTertiary,
+        borderRadius: 16,
+        padding: 16,
+        alignItems: "center",
+        borderWidth: 2,
+        borderColor: colors.border,
+    };
+
+    const primaryButtonStyle: ViewStyle = {
+        ...buttonStyle,
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
+    };
+
+    const iconStyle: TextStyle = {
+        fontSize: 32,
+        marginBottom: 8,
+    };
+
+    const titleStyle: TextStyle = {
+        fontSize: 16,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 2,
+    };
+
+    const primaryTitleStyle: TextStyle = {
+        ...titleStyle,
+        color: "#fff",
+    };
+
+    const subtitleStyle: TextStyle = {
+        fontSize: 12,
+        color: colors.textSecondary,
+    };
+
+    const primarySubtitleStyle: TextStyle = {
+        ...subtitleStyle,
+        color: "#c7d2fe",
+    };
+
+    return (
+        <View style={rowStyle}>
+            <TouchableOpacity style={primaryButtonStyle} onPress={onTakePhoto}>
+                <Text style={iconStyle}>📷</Text>
+                <Text style={primaryTitleStyle}>Camera</Text>
+                <Text style={primarySubtitleStyle}>Take photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={buttonStyle} onPress={onPickFromGallery}>
+                <Text style={iconStyle}>🖼️</Text>
+                <Text style={titleStyle}>Gallery</Text>
+                <Text style={subtitleStyle}>Choose photo</Text>
+            </TouchableOpacity>
+        </View>
+    );
+}
+
+function ImagePreview({
+                          imageUri,
+                          onPress
+                      }: {
+    imageUri: string;
+    onPress: () => void;
+}) {
+    const { colors } = useTheme();
+
+    const containerStyle: ViewStyle = {
+        borderRadius: 16,
+        overflow: "hidden",
+        backgroundColor: colors.backgroundTertiary,
+    };
+
+    const imageStyle: ViewStyle = {
+        width: "100%",
+        height: 240,
+        backgroundColor: colors.backgroundTertiary,
+    };
+
+    const overlayStyle: ViewStyle = {
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: "rgba(0,0,0,0.5)",
+        padding: 12,
+    };
+
+    const overlayTextStyle: TextStyle = {
+        color: "#fff",
+        fontSize: 14,
+        textAlign: "center",
+    };
+
+    return (
+        <Pressable style={containerStyle} onPress={onPress}>
+            <Image source={{ uri: imageUri }} style={imageStyle} resizeMode="cover" />
+            <View style={overlayStyle}>
+                <Text style={overlayTextStyle}>Tap to enlarge</Text>
+            </View>
+        </Pressable>
+    );
+}
+
+function EmptyImageState() {
+    const { colors } = useTheme();
+
+    const containerStyle: ViewStyle = {
+        backgroundColor: colors.backgroundTertiary,
+        borderRadius: 16,
+        padding: 40,
+        alignItems: "center",
+        borderWidth: 2,
+        borderColor: colors.border,
+        borderStyle: "dashed",
+    };
+
+    const iconStyle: TextStyle = {
+        fontSize: 48,
+        marginBottom: 12,
+    };
+
+    const textStyle: TextStyle = {
+        fontSize: 16,
+        color: colors.textTertiary,
+    };
+
+    return (
+        <View style={containerStyle}>
+            <Text style={iconStyle}>📸</Text>
+            <Text style={textStyle}>No image selected</Text>
+        </View>
+    );
+}
+
+function AnalyzeButton({
+                           onPress,
+                           disabled,
+                           uploading,
+                           analyzing
+                       }: {
+    onPress: () => void;
+    disabled: boolean;
+    uploading: boolean;
+    analyzing: boolean;
+}) {
+    const { colors } = useTheme();
+
+    const buttonStyle: ViewStyle = {
+        flexDirection: "row",
+        backgroundColor: disabled ? colors.textTertiary : colors.primary,
+        borderRadius: 16,
+        padding: 18,
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 12,
+    };
+
+    const iconStyle: TextStyle = {
+        fontSize: 24,
+    };
+
+    const textStyle: TextStyle = {
+        color: "#fff",
+        fontSize: 18,
+        fontWeight: "700",
+    };
+
+    const getButtonText = () => {
+        if (uploading) return "Uploading...";
+        if (analyzing) return "Analyzing...";
+        return "Start Analysis";
+    };
+
     return (
         <TouchableOpacity
-            style={[styles.actionButton, primary && styles.actionButtonPrimary]}
+            style={buttonStyle}
             onPress={onPress}
+            disabled={disabled}
+            activeOpacity={disabled ? 1 : 0.8}
         >
-            <Text style={styles.actionButtonIcon}>{icon}</Text>
-            <Text style={[styles.actionButtonTitle, primary && styles.actionButtonTitlePrimary]}>
-                {title}
-            </Text>
-            <Text style={[styles.actionButtonSubtitle, primary && styles.actionButtonSubtitlePrimary]}>
-                {subtitle}
-            </Text>
+            {(uploading || analyzing) ? (
+                <ActivityIndicator color="#fff" size="small" />
+            ) : (
+                <Text style={iconStyle}>🔍</Text>
+            )}
+            <Text style={textStyle}>{getButtonText()}</Text>
         </TouchableOpacity>
+    );
+}
+
+function ErrorCard({ error }: { error: string }) {
+    const { colors } = useTheme();
+
+    const containerStyle: ViewStyle = {
+        flexDirection: "row",
+        backgroundColor: colors.errorBackground,
+        borderRadius: 12,
+        padding: 16,
+        marginTop: 12,
+        alignItems: "center",
+        gap: 12,
+        borderWidth: 1,
+        borderColor: colors.error,
+    };
+
+    const iconStyle: TextStyle = {
+        fontSize: 24,
+    };
+
+    const textStyle: TextStyle = {
+        flex: 1,
+        color: colors.error,
+        fontSize: 14,
+        lineHeight: 20,
+    };
+
+    return (
+        <View style={containerStyle}>
+            <Text style={iconStyle}>⚠️</Text>
+            <Text style={textStyle}>{error}</Text>
+        </View>
+    );
+}
+
+function AssessmentCard({ result }: { result: AnalysisResult }) {
+    const { colors } = useTheme();
+
+    const containerStyle: ViewStyle = {
+        backgroundColor: colors.successBackground,
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: colors.success,
+    };
+
+    const headerStyle: ViewStyle = {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 20,
+    };
+
+    const titleStyle: TextStyle = {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.text,
+    };
+
+    const gridStyle: ViewStyle = {
+        flexDirection: "row",
+        gap: 12,
+    };
+
+    return (
+        <View style={containerStyle}>
+            <View style={headerStyle}>
+                <Text style={titleStyle}>Overall Assessment</Text>
+                <GradeBadge grade={result.overallAssessment.safetyGrade} />
+            </View>
+
+            <View style={gridStyle}>
+                <MetricCard
+                    icon="⚡"
+                    label="Risk Score"
+                    value={String(result.overallAssessment.riskScore)}
+                    color={colors.error}
+                />
+                <MetricCard
+                    icon="🛡️"
+                    label="Confidence"
+                    value={`${result.metadata.confidence}%`}
+                    color={colors.success}
+                />
+                <MetricCard
+                    icon="⚠️"
+                    label="Hazards"
+                    value={String(result.hazards.length)}
+                    color={colors.warning}
+                />
+            </View>
+        </View>
     );
 }
 
@@ -687,11 +963,38 @@ function MetricCard({
     value: string;
     color: string;
 }) {
+    const { colors } = useTheme();
+
+    const containerStyle: ViewStyle = {
+        flex: 1,
+        backgroundColor: colors.surface,
+        borderRadius: 12,
+        padding: 16,
+        alignItems: "center",
+    };
+
+    const iconStyle: TextStyle = {
+        fontSize: 24,
+        marginBottom: 8,
+    };
+
+    const valueStyle: TextStyle = {
+        fontSize: 24,
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 4,
+    };
+
+    const labelStyle: TextStyle = {
+        fontSize: 12,
+        color: colors.textSecondary,
+    };
+
     return (
-        <View style={styles.metricCard}>
-            <Text style={[styles.metricIcon, { color }]}>{icon}</Text>
-            <Text style={styles.metricValue}>{value}</Text>
-            <Text style={styles.metricLabel}>{label}</Text>
+        <View style={containerStyle}>
+            <Text style={[iconStyle, { color }]}>{icon}</Text>
+            <Text style={valueStyle}>{value}</Text>
+            <Text style={labelStyle}>{label}</Text>
         </View>
     );
 }
@@ -705,14 +1008,77 @@ function GradeBadge({ grade }: { grade: SafetyGrade }) {
         F: "#ef4444",
     };
 
+    const containerStyle: ViewStyle = {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: colors[grade],
+        justifyContent: "center",
+        alignItems: "center",
+    };
+
+    const textStyle: TextStyle = {
+        fontSize: 24,
+        fontWeight: "800",
+        color: "#fff",
+    };
+
     return (
-        <View style={[styles.gradeBadge, { backgroundColor: colors[grade] }]}>
-            <Text style={styles.gradeBadgeText}>{grade}</Text>
+        <View style={containerStyle}>
+            <Text style={textStyle}>{grade}</Text>
+        </View>
+    );
+}
+
+function HazardSection({ section }: { section: { title: string; data: Hazard[] } }) {
+    const { colors } = useTheme();
+
+    const containerStyle: ViewStyle = {
+        marginBottom: 20,
+    };
+
+    const headerStyle: ViewStyle = {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 12,
+    };
+
+    const titleStyle: TextStyle = {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.text,
+    };
+
+    const countStyle: TextStyle = {
+        fontSize: 14,
+        color: colors.textSecondary,
+        backgroundColor: colors.backgroundTertiary,
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 12,
+    };
+
+    return (
+        <View style={containerStyle}>
+            <View style={headerStyle}>
+                <Text style={titleStyle}>
+                    {getCategoryIcon(section.title)} {section.title}
+                </Text>
+                <Text style={countStyle}>
+                    {section.data.length} issue{section.data.length !== 1 ? 's' : ''}
+                </Text>
+            </View>
+            {section.data.map((hazard) => (
+                <EnhancedHazardCard key={hazard.id} hazard={hazard} />
+            ))}
         </View>
     );
 }
 
 function EnhancedHazardCard({ hazard }: { hazard: Hazard }) {
+    const { colors } = useTheme();
+
     const severityColors = {
         Critical: "#991b1b",
         High: "#dc2626",
@@ -720,73 +1086,96 @@ function EnhancedHazardCard({ hazard }: { hazard: Hazard }) {
         Low: "#16a34a",
     };
 
+    const cardStyle: ViewStyle = {
+        backgroundColor: colors.surface,
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: colors.border,
+    };
+
+    const headerStyle: ViewStyle = {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginBottom: 16,
+    };
+
+    const titleSectionStyle: ViewStyle = {
+        flex: 1,
+        marginRight: 12,
+    };
+
+    const titleStyle: TextStyle = {
+        fontSize: 16,
+        fontWeight: "600",
+        color: colors.text,
+        marginBottom: 4,
+    };
+
+    const locationStyle: TextStyle = {
+        fontSize: 13,
+        color: colors.textSecondary,
+    };
+
+    const severityBadgeStyle: ViewStyle = {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 8,
+        backgroundColor: `${severityColors[hazard.severity]}15`,
+        alignSelf: "flex-start",
+    };
+
+    const severityTextStyle: TextStyle = {
+        fontSize: 13,
+        fontWeight: "700",
+        color: severityColors[hazard.severity],
+    };
+
     return (
-        <View style={styles.hazardCard}>
-            <View style={styles.hazardHeader}>
-                <View style={styles.hazardTitleSection}>
-                    <Text style={styles.hazardTitle}>{hazard.description}</Text>
-                    <Text style={styles.hazardLocation}>📍 {hazard.location}</Text>
+        <View style={cardStyle}>
+            <View style={headerStyle}>
+                <View style={titleSectionStyle}>
+                    <Text style={titleStyle}>{hazard.description}</Text>
+                    <Text style={locationStyle}>📍 {hazard.location}</Text>
                 </View>
-                <View style={[styles.severityBadge, { backgroundColor: `${severityColors[hazard.severity]}15` }]}>
-                    <Text style={[styles.severityText, { color: severityColors[hazard.severity] }]}>
-                        {hazard.severity}
-                    </Text>
+                <View style={severityBadgeStyle}>
+                    <Text style={severityTextStyle}>{hazard.severity}</Text>
                 </View>
             </View>
+            {/* Add more hazard details here */}
+        </View>
+    );
+}
 
-            <View style={styles.hazardMetrics}>
-                <View style={styles.hazardMetric}>
-                    <Text style={styles.hazardMetricLabel}>Priority</Text>
-                    <View style={styles.priorityBar}>
-                        <View
-                            style={[
-                                styles.priorityFill,
-                                {
-                                    width: `${hazard.priority * 10}%`,
-                                    backgroundColor: hazard.priority > 7 ? '#ef4444' : hazard.priority > 4 ? '#f59e0b' : '#10b981'
-                                }
-                            ]}
-                        />
-                    </View>
-                    <Text style={styles.hazardMetricValue}>{hazard.priority}/10</Text>
-                </View>
+function RecentSection({ recent }: { recent: ListResponse["inspections"] }) {
+    const { colors } = useTheme();
 
-                {hazard.estimatedCost && (
-                    <View style={styles.hazardMetric}>
-                        <Text style={styles.hazardMetricLabel}>Cost</Text>
-                        <Text style={styles.hazardMetricValue}>{hazard.estimatedCost}</Text>
-                    </View>
+    const containerStyle: ViewStyle = {
+        marginTop: 20,
+        marginBottom: 20,
+    };
+
+    const titleStyle: TextStyle = {
+        fontSize: 22,
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 16,
+    };
+
+    return (
+        <View style={containerStyle}>
+            <Text style={titleStyle}>Recent Analyses</Text>
+            <FlatList
+                data={recent}
+                keyExtractor={(item) => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingRight: 16, gap: 12 }}
+                renderItem={({ item }) => (
+                    <RecentCard item={item} onPress={() => router.push(`/inspection/${item.id}`)} />
                 )}
-
-                {hazard.timeToImplement && (
-                    <View style={styles.hazardMetric}>
-                        <Text style={styles.hazardMetricLabel}>Time</Text>
-                        <Text style={styles.hazardMetricValue}>{hazard.timeToImplement}</Text>
-                    </View>
-                )}
-            </View>
-
-            <View style={styles.solutionsContainer}>
-                <View style={styles.solutionSection}>
-                    <Text style={styles.solutionTitle}>🚨 Immediate Actions</Text>
-                    {hazard.immediateSolutions.map((solution, index) => (
-                        <View key={`immediate-${index}`} style={styles.solutionItem}>
-                            <Text style={styles.solutionBullet}>•</Text>
-                            <Text style={styles.solutionText}>{solution}</Text>
-                        </View>
-                    ))}
-                </View>
-
-                <View style={styles.solutionSection}>
-                    <Text style={styles.solutionTitle}>📋 Long-term Solutions</Text>
-                    {hazard.longTermSolutions.map((solution, index) => (
-                        <View key={`longterm-${index}`} style={styles.solutionItem}>
-                            <Text style={styles.solutionBullet}>•</Text>
-                            <Text style={styles.solutionText}>{solution}</Text>
-                        </View>
-                    ))}
-                </View>
-            </View>
+            />
         </View>
     );
 }
@@ -798,35 +1187,135 @@ function RecentCard({
     item: ListResponse["inspections"][0];
     onPress: () => void;
 }) {
+    const { colors } = useTheme();
+
+    const cardStyle: ViewStyle = {
+        width: 200,
+        backgroundColor: colors.surface,
+        borderRadius: 16,
+        overflow: "hidden",
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 3,
+    };
+
+    const imageStyle: ViewStyle = {
+        width: "100%",
+        height: 120,
+        backgroundColor: colors.backgroundTertiary,
+    };
+
+    const contentStyle: ViewStyle = {
+        padding: 16,
+    };
+
+    const statsStyle: ViewStyle = {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-around",
+        marginBottom: 12,
+    };
+
+    const statStyle: ViewStyle = {
+        alignItems: "center",
+    };
+
+    const statValueStyle: TextStyle = {
+        fontSize: 18,
+        fontWeight: "700",
+        color: colors.text,
+        marginBottom: 2,
+    };
+
+    const statLabelStyle: TextStyle = {
+        fontSize: 11,
+        color: colors.textSecondary,
+    };
+
+    const dividerStyle: ViewStyle = {
+        width: 1,
+        height: 30,
+        backgroundColor: colors.border,
+    };
+
+    const buttonStyle: ViewStyle = {
+        backgroundColor: colors.primary,
+        borderRadius: 10,
+        padding: 12,
+        alignItems: "center",
+    };
+
+    const buttonTextStyle: TextStyle = {
+        color: "#fff",
+        fontSize: 14,
+        fontWeight: "600",
+    };
+
     return (
-        <Pressable style={styles.recentCard} onPress={onPress}>
-            <Image source={{ uri: item.imageUrl }} style={styles.recentImage} resizeMode="cover" />
-            <View style={styles.recentContent}>
-                <View style={styles.recentStats}>
-                    <View style={styles.recentStat}>
-                        <Text style={styles.recentStatValue}>{item.riskScore ?? "-"}</Text>
-                        <Text style={styles.recentStatLabel}>Risk</Text>
+        <Pressable style={cardStyle} onPress={onPress}>
+            <Image source={{ uri: item.imageUrl }} style={imageStyle} resizeMode="cover" />
+            <View style={contentStyle}>
+                <View style={statsStyle}>
+                    <View style={statStyle}>
+                        <Text style={statValueStyle}>{item.riskScore ?? "-"}</Text>
+                        <Text style={statLabelStyle}>Risk</Text>
                     </View>
-                    <View style={styles.recentDivider} />
-                    <View style={styles.recentStat}>
-                        <Text style={styles.recentStatValue}>{item.hazardCount ?? "-"}</Text>
-                        <Text style={styles.recentStatLabel}>Hazards</Text>
+                    <View style={dividerStyle} />
+                    <View style={statStyle}>
+                        <Text style={statValueStyle}>{item.hazardCount ?? "-"}</Text>
+                        <Text style={statLabelStyle}>Hazards</Text>
                     </View>
-                    <View style={styles.recentDivider} />
-                    <View style={styles.recentStat}>
-                        <Text style={styles.recentStatValue}>{item.safetyGrade ?? "-"}</Text>
-                        <Text style={styles.recentStatLabel}>Grade</Text>
+                    <View style={dividerStyle} />
+                    <View style={statStyle}>
+                        <Text style={statValueStyle}>{item.safetyGrade ?? "-"}</Text>
+                        <Text style={statLabelStyle}>Grade</Text>
                     </View>
                 </View>
-                <TouchableOpacity style={styles.recentButton} onPress={onPress}>
-                    <Text style={styles.recentButtonText}>View Details →</Text>
+                <TouchableOpacity style={buttonStyle} onPress={onPress}>
+                    <Text style={buttonTextStyle}>View Details →</Text>
                 </TouchableOpacity>
             </View>
         </Pressable>
     );
 }
 
-/* -------------------- Helpers -------------------- */
+function ImageModal({
+                        visible,
+                        imageUri,
+                        onClose
+                    }: {
+    visible: boolean;
+    imageUri: string | null;
+    onClose: () => void;
+}) {
+    const overlayStyle: ViewStyle = {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.9)",
+        justifyContent: "center",
+        alignItems: "center",
+    };
+
+    const imageStyle: ViewStyle = {
+        width: screenWidth * 0.9,
+        height: "80%",
+    };
+
+    return (
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+            <TouchableWithoutFeedback onPress={onClose}>
+                <View style={overlayStyle}>
+                    {imageUri && (
+                        <Image source={{ uri: imageUri }} style={imageStyle} resizeMode="contain" />
+                    )}
+                </View>
+            </TouchableWithoutFeedback>
+        </Modal>
+    );
+}
+
+// Helper functions
 function guessMimeFromUri(uri: string | null | undefined) {
     if (!uri) return null;
     const lower = uri.toLowerCase();
@@ -850,524 +1339,3 @@ function getCategoryIcon(category: string): string {
     };
     return icons[category] || "📋";
 }
-
-/* -------------------- Styles -------------------- */
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#f8fafc",
-    },
-    scrollContent: {
-        paddingTop: Platform.select({ ios: 60, android: 40, default: 40 }),
-        paddingHorizontal: 16,
-        paddingBottom: 80,
-    },
-    centeredContent: {
-        justifyContent: "center",
-        alignItems: "center",
-        paddingHorizontal: 20,
-    },
-
-    // Auth Card
-    authCard: {
-        backgroundColor: "#fff",
-        borderRadius: 24,
-        padding: 32,
-        alignItems: "center",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 5,
-    },
-    iconContainer: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: "#f3f4f6",
-        justifyContent: "center",
-        alignItems: "center",
-        marginBottom: 20,
-    },
-    lockIcon: {
-        fontSize: 40,
-    },
-    authTitle: {
-        fontSize: 24,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 8,
-    },
-    authSubtitle: {
-        fontSize: 16,
-        color: "#6b7280",
-        textAlign: "center",
-        lineHeight: 22,
-    },
-
-    // Header
-    header: {
-        marginBottom: 24,
-    },
-    headerTitle: {
-        fontSize: 32,
-        fontWeight: "800",
-        color: "#111827",
-        marginBottom: 4,
-    },
-    headerSubtitle: {
-        fontSize: 16,
-        color: "#6b7280",
-    },
-
-    // Step Card
-    stepCard: {
-        backgroundColor: "#fff",
-        borderRadius: 20,
-        marginBottom: 20,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 3,
-        overflow: "hidden",
-    },
-    stepHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        padding: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: "#f3f4f6",
-    },
-    stepNumber: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: "#4f46e5",
-        justifyContent: "center",
-        alignItems: "center",
-        marginRight: 16,
-    },
-    stepNumberText: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: "#fff",
-    },
-    stepInfo: {
-        flex: 1,
-    },
-    stepTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 2,
-    },
-    stepDescription: {
-        fontSize: 14,
-        color: "#6b7280",
-    },
-    stepContent: {
-        padding: 20,
-    },
-
-    // Action Buttons
-    buttonRow: {
-        flexDirection: "row",
-        gap: 12,
-        marginBottom: 16,
-    },
-    actionButton: {
-        flex: 1,
-        backgroundColor: "#f9fafb",
-        borderRadius: 16,
-        padding: 16,
-        alignItems: "center",
-        borderWidth: 2,
-        borderColor: "#e5e7eb",
-    },
-    actionButtonPrimary: {
-        backgroundColor: "#4f46e5",
-        borderColor: "#4f46e5",
-    },
-    actionButtonIcon: {
-        fontSize: 32,
-        marginBottom: 8,
-    },
-    actionButtonTitle: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#111827",
-        marginBottom: 2,
-    },
-    actionButtonTitlePrimary: {
-        color: "#fff",
-    },
-    actionButtonSubtitle: {
-        fontSize: 12,
-        color: "#6b7280",
-    },
-    actionButtonSubtitlePrimary: {
-        color: "#c7d2fe",
-    },
-
-    // Image Preview
-    imagePreviewCard: {
-        borderRadius: 16,
-        overflow: "hidden",
-        backgroundColor: "#f3f4f6",
-    },
-    imagePreview: {
-        width: "100%",
-        height: 240,
-        backgroundColor: "#f9fafb",
-    },
-    imageOverlay: {
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: "rgba(0,0,0,0.5)",
-        padding: 12,
-    },
-    imageOverlayText: {
-        color: "#fff",
-        fontSize: 14,
-        textAlign: "center",
-    },
-
-    // Empty State
-    emptyState: {
-        backgroundColor: "#f9fafb",
-        borderRadius: 16,
-        padding: 40,
-        alignItems: "center",
-        borderWidth: 2,
-        borderColor: "#e5e7eb",
-        borderStyle: "dashed",
-    },
-    emptyStateIcon: {
-        fontSize: 48,
-        marginBottom: 12,
-    },
-    emptyStateText: {
-        fontSize: 16,
-        color: "#9ca3af",
-    },
-
-    // Analyze Button
-    analyzeButton: {
-        flexDirection: "row",
-        backgroundColor: "#4f46e5",
-        borderRadius: 16,
-        padding: 18,
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 12,
-    },
-    analyzeButtonDisabled: {
-        backgroundColor: "#9ca3af",
-    },
-    analyzeButtonIcon: {
-        fontSize: 24,
-    },
-    analyzeButtonText: {
-        color: "#fff",
-        fontSize: 18,
-        fontWeight: "700",
-    },
-
-    // Error Card
-    errorCard: {
-        flexDirection: "row",
-        backgroundColor: "#fef2f2",
-        borderRadius: 12,
-        padding: 16,
-        marginTop: 12,
-        alignItems: "center",
-        gap: 12,
-        borderWidth: 1,
-        borderColor: "#fee2e2",
-    },
-    errorIcon: {
-        fontSize: 24,
-    },
-    errorText: {
-        flex: 1,
-        color: "#991b1b",
-        fontSize: 14,
-        lineHeight: 20,
-    },
-
-    // Assessment Card
-    assessmentCard: {
-        backgroundColor: "#f0fdf4",
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: "#bbf7d0",
-    },
-    assessmentHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 20,
-    },
-    assessmentTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#111827",
-    },
-
-    // Grade Badge
-    gradeBadge: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    gradeBadgeText: {
-        fontSize: 24,
-        fontWeight: "800",
-        color: "#fff",
-    },
-
-    // Metrics Grid
-    metricsGrid: {
-        flexDirection: "row",
-        gap: 12,
-    },
-    metricCard: {
-        flex: 1,
-        backgroundColor: "#fff",
-        borderRadius: 12,
-        padding: 16,
-        alignItems: "center",
-    },
-    metricIcon: {
-        fontSize: 24,
-        marginBottom: 8,
-    },
-    metricValue: {
-        fontSize: 24,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 4,
-    },
-    metricLabel: {
-        fontSize: 12,
-        color: "#6b7280",
-    },
-
-    // Hazard Section
-    hazardSection: {
-        marginBottom: 20,
-    },
-    sectionHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 12,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#111827",
-    },
-    sectionCount: {
-        fontSize: 14,
-        color: "#6b7280",
-        backgroundColor: "#f3f4f6",
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 12,
-    },
-
-    // Hazard Card
-    hazardCard: {
-        backgroundColor: "#fff",
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: "#e5e7eb",
-    },
-    hazardHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 16,
-    },
-    hazardTitleSection: {
-        flex: 1,
-        marginRight: 12,
-    },
-    hazardTitle: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#111827",
-        marginBottom: 4,
-    },
-    hazardLocation: {
-        fontSize: 13,
-        color: "#6b7280",
-    },
-    severityBadge: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 8,
-        alignSelf: "flex-start",
-    },
-    severityText: {
-        fontSize: 13,
-        fontWeight: "700",
-    },
-
-    // Hazard Metrics
-    hazardMetrics: {
-        flexDirection: "row",
-        gap: 16,
-        marginBottom: 16,
-        paddingBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: "#f3f4f6",
-    },
-    hazardMetric: {
-        flex: 1,
-    },
-    hazardMetricLabel: {
-        fontSize: 12,
-        color: "#6b7280",
-        marginBottom: 4,
-    },
-    hazardMetricValue: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#111827",
-    },
-    priorityBar: {
-        height: 6,
-        backgroundColor: "#e5e7eb",
-        borderRadius: 3,
-        marginVertical: 4,
-        overflow: "hidden",
-    },
-    priorityFill: {
-        height: "100%",
-        borderRadius: 3,
-    },
-
-    // Solutions
-    solutionsContainer: {
-        gap: 16,
-    },
-    solutionSection: {
-        backgroundColor: "#f9fafb",
-        borderRadius: 12,
-        padding: 16,
-    },
-    solutionTitle: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#111827",
-        marginBottom: 12,
-    },
-    solutionItem: {
-        flexDirection: "row",
-        marginBottom: 8,
-    },
-    solutionBullet: {
-        fontSize: 14,
-        color: "#6b7280",
-        marginRight: 8,
-        marginTop: 2,
-    },
-    solutionText: {
-        flex: 1,
-        fontSize: 14,
-        color: "#4b5563",
-        lineHeight: 20,
-    },
-
-    // Recent Section
-    recentSection: {
-        marginTop: 20,
-        marginBottom: 20,
-    },
-    recentTitle: {
-        fontSize: 22,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 16,
-    },
-    recentList: {
-        paddingRight: 16,
-        gap: 12,
-    },
-    recentCard: {
-        width: 200,
-        backgroundColor: "#fff",
-        borderRadius: 16,
-        overflow: "hidden",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 3,
-    },
-    recentImage: {
-        width: "100%",
-        height: 120,
-        backgroundColor: "#f3f4f6",
-    },
-    recentContent: {
-        padding: 16,
-    },
-    recentStats: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-around",
-        marginBottom: 12,
-    },
-    recentStat: {
-        alignItems: "center",
-    },
-    recentStatValue: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 2,
-    },
-    recentStatLabel: {
-        fontSize: 11,
-        color: "#6b7280",
-    },
-    recentDivider: {
-        width: 1,
-        height: 30,
-        backgroundColor: "#e5e7eb",
-    },
-    recentButton: {
-        backgroundColor: "#4f46e5",
-        borderRadius: 10,
-        padding: 12,
-        alignItems: "center",
-    },
-    recentButtonText: {
-        color: "#fff",
-        fontSize: 14,
-        fontWeight: "600",
-    },
-
-    // Modal
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: "rgba(0,0,0,0.9)",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    modalImage: {
-        width: screenWidth * 0.9,
-        height: "80%",
-    },
-});
