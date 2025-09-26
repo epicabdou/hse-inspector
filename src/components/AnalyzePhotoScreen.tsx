@@ -6,7 +6,6 @@ import {
     Image,
     Platform,
     ScrollView,
-    StyleSheet,
     Text,
     TouchableOpacity,
     View,
@@ -419,8 +418,6 @@ const AnalyzePhotoScreen: React.FC<AnalyzePhotoScreenProps> = ({
                         ],
                     }}
                 >
-                    <Header />
-
                     <StepCard
                         number="1"
                         title="Capture Image"

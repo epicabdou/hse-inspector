@@ -1,10 +1,9 @@
-// src/app/(protected)/settings.tsx
+// src/app/(protected)/(tabs)/settings.tsx
 import React, { useState } from 'react';
 import {
     View,
     Text,
     ScrollView,
-    StyleSheet,
     Switch,
     TouchableOpacity,
     Alert,
@@ -16,7 +15,6 @@ import { router } from 'expo-router';
 import { useAuth } from '@clerk/clerk-expo';
 import { useTheme, ThemeMode } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
-import CustomButton from '@/components/CustomButton';
 
 interface SettingItemProps {
     icon: string;
@@ -49,6 +47,8 @@ const SettingItem: React.FC<SettingItemProps> = ({
         shadowOpacity: 0.05,
         shadowRadius: 2,
         elevation: 1,
+        borderWidth: 1,
+        borderColor: colors.border,
     };
 
     const iconContainerStyle: ViewStyle = {
@@ -145,7 +145,7 @@ export default function SettingsScreen() {
     };
 
     const scrollContentStyle: ViewStyle = {
-        paddingTop: Platform.select({ ios: 60, android: 40, default: 40 }),
+        paddingTop: Platform.select({ ios: 0, android: 16 }),
         paddingHorizontal: 16,
         paddingBottom: 80,
     };
@@ -175,6 +175,8 @@ export default function SettingsScreen() {
         shadowOpacity: 0.05,
         shadowRadius: 2,
         elevation: 1,
+        borderWidth: 1,
+        borderColor: colors.border,
     };
 
     const themeOptionStyle: ViewStyle = {
@@ -254,7 +256,6 @@ export default function SettingsScreen() {
                     title={user?.emailAddresses?.[0]?.emailAddress || 'Profile'}
                     subtitle="Manage your account settings"
                     onPress={() => {
-                        // Navigate to profile screen or show profile options
                         Alert.alert('Profile', 'Profile management coming soon!');
                     }}
                 />
@@ -283,7 +284,7 @@ export default function SettingsScreen() {
                                 <Text style={themeOptionTextStyle}>
                                     {mode.charAt(0).toUpperCase() + mode.slice(1)}
                                 </Text>
-                                <Text style={[subtitleStyle, { fontSize: 12, marginTop: 2 }]}>
+                                <Text style={[{ fontSize: 12, marginTop: 2, color: colors.textSecondary }]}>
                                     {getThemeDescription(mode)}
                                 </Text>
                             </View>
@@ -371,7 +372,7 @@ export default function SettingsScreen() {
                 />
             </Section>
 
-            {/* Danger Zone */}
+            {/* Account Actions */}
             <Section title="Account Actions">
                 <SettingItem
                     icon="log-out"
@@ -382,26 +383,6 @@ export default function SettingsScreen() {
                 />
             </Section>
 
-            {/* Quick Theme Toggle Button */}
-            <View style={{ marginTop: 20, marginBottom: 20 }}>
-                <CustomButton
-                    text={`Switch to ${isDark ? 'Light' : 'Dark'} Mode`}
-                    variant="outline"
-                    onPress={toggleTheme}
-                    icon={
-                        <Ionicons
-                            name={isDark ? 'sunny' : 'moon'}
-                            size={20}
-                            color={colors.primary}
-                        />
-                    }
-                />
-            </View>
         </ScrollView>
     );
 }
-
-const subtitleStyle: TextStyle = {
-    fontSize: 14,
-    color: '#6B7280', // This will be overridden by the theme
-};

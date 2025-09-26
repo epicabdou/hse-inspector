@@ -292,8 +292,6 @@ export default function SignUpScreen() {
                 {/* Social Sign Up */}
                 <View style={socialButtonsStyle}>
                     <SignInWith strategy='oauth_google' />
-                    <SignInWith strategy='oauth_facebook' />
-                    <SignInWith strategy='oauth_apple' />
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>

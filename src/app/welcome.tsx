@@ -14,7 +14,7 @@ export default function WelcomeScreen() {
 
       <Link href='/sign-in'>Go to sign in</Link>
 
-      <Link href='/(protected)'>Go to Protected Screens</Link>
+      <Link href='/(protected)/(tabs)'>Go to Protected Screens</Link>
     </View>
   );
 }
