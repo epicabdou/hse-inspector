@@ -1,26 +1,25 @@
 // src/app/(auth)/sign-in.tsx
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
-    StyleSheet,
-    Text,
     KeyboardAvoidingView,
     Platform,
-    View,
-    Alert,
     ScrollView,
+    View,
+    Text,
+    Animated,
     ViewStyle,
     TextStyle,
 } from 'react-native';
-import CustomInput from '@/components/CustomInput';
-import CustomButton from '@/components/CustomButton';
 import { Link } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { isClerkAPIResponseError, useSignIn } from '@clerk/clerk-expo';
-import SignInWith from '@/components/SignInWith';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme, spacing, borderRadius, typography, shadows } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import CustomInput from '@/components/CustomInput';
+import CustomButton from '@/components/CustomButton';
+import SignInWith from '@/components/SignInWith';
 
 const signInSchema = z.object({
     email: z.string({ message: 'Email is required' }).email('Invalid email'),
@@ -43,17 +42,35 @@ const mapClerkErrorToFormField = (error: any) => {
 };
 
 export default function SignInScreen() {
-    const { colors, isDark } = useTheme();
+    const { colors } = useTheme();
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(50)).current;
+
     const {
         control,
         handleSubmit,
         setError,
-        formState: { errors },
+        formState: { errors, isSubmitting },
     } = useForm<SignInFields>({
         resolver: zodResolver(signInSchema),
     });
 
     const { signIn, isLoaded, setActive } = useSignIn();
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 800,
+                useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim, {
+                toValue: 0,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, []);
 
     const onSignIn = async (data: SignInFields) => {
         if (!isLoaded) return;
@@ -67,12 +84,9 @@ export default function SignInScreen() {
             if (signInAttempt.status === 'complete') {
                 setActive({ session: signInAttempt.createdSessionId });
             } else {
-                console.log('Sign in failed');
                 setError('root', { message: 'Sign in could not be completed' });
             }
         } catch (err) {
-            console.log('Sign in error: ', JSON.stringify(err, null, 2));
-
             if (isClerkAPIResponseError(err)) {
                 err.errors.forEach((error) => {
                     const fieldName = mapClerkErrorToFormField(error);
@@ -81,7 +95,7 @@ export default function SignInScreen() {
                     });
                 });
             } else {
-                setError('root', { message: 'Unknown error' });
+                setError('root', { message: 'Unknown error occurred' });
             }
         }
     };
@@ -94,85 +108,94 @@ export default function SignInScreen() {
     const scrollContentStyle: ViewStyle = {
         flexGrow: 1,
         justifyContent: 'center',
-        padding: 20,
+        paddingHorizontal: spacing.xl,
         paddingTop: Platform.select({ ios: 60, android: 40 }),
+        paddingBottom: spacing.xl,
     };
 
-    const headerSectionStyle: ViewStyle = {
+    const cardStyle: ViewStyle = {
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius['2xl'],
+        padding: spacing.xl,
+        ...shadows.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+    };
+
+    const headerStyle: ViewStyle = {
         alignItems: 'center',
-        marginBottom: 40,
+        marginBottom: spacing.xl,
     };
 
-    const logoContainerStyle: ViewStyle = {
+    const logoStyle: ViewStyle = {
         width: 80,
         height: 80,
         backgroundColor: colors.primary,
-        borderRadius: 20,
+        borderRadius: borderRadius.xl,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 24,
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
+        marginBottom: spacing.lg,
+        ...shadows.md,
     };
 
     const logoTextStyle: TextStyle = {
-        color: '#FFFFFF',
-        fontSize: 24,
+        color: colors.textOnPrimary,
+        fontSize: 28,
         fontWeight: '800',
         letterSpacing: 1,
     };
 
     const titleStyle: TextStyle = {
-        fontSize: 32,
+        fontSize: typography['3xl'].fontSize,
+        lineHeight: typography['3xl'].lineHeight,
         fontWeight: '800',
         color: colors.text,
-        marginBottom: 8,
         textAlign: 'center',
+        marginBottom: spacing.sm,
     };
 
     const subtitleStyle: TextStyle = {
-        fontSize: 16,
+        fontSize: typography.lg.fontSize,
+        lineHeight: typography.lg.lineHeight,
         color: colors.textSecondary,
         textAlign: 'center',
-        lineHeight: 22,
     };
 
     const formStyle: ViewStyle = {
-        marginBottom: 24,
+        gap: spacing.md,
+        marginBottom: spacing.lg,
     };
 
-    const errorContainerStyle: ViewStyle = {
-        backgroundColor: colors.errorBackground,
-        borderRadius: 12,
-        padding: 16,
-        marginTop: 12,
+    const errorStyle: ViewStyle = {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        backgroundColor: colors.errorBackground,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
+        gap: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.error,
     };
 
     const errorTextStyle: TextStyle = {
         color: colors.error,
-        fontSize: 14,
+        fontSize: typography.sm.fontSize,
         flex: 1,
-        lineHeight: 20,
+        lineHeight: typography.sm.lineHeight,
     };
 
     const linkStyle: TextStyle = {
         color: colors.primary,
         fontWeight: '600',
-        fontSize: 16,
+        fontSize: typography.base.fontSize,
         textAlign: 'center',
-        marginVertical: 16,
+        marginVertical: spacing.lg,
     };
 
     const dividerStyle: ViewStyle = {
         flexDirection: 'row',
         alignItems: 'center',
-        marginVertical: 24,
+        marginVertical: spacing.lg,
     };
 
     const dividerLineStyle: ViewStyle = {
@@ -182,8 +205,8 @@ export default function SignInScreen() {
     };
 
     const dividerTextStyle: TextStyle = {
-        marginHorizontal: 16,
-        fontSize: 14,
+        marginHorizontal: spacing.md,
+        fontSize: typography.sm.fontSize,
         color: colors.textSecondary,
         fontWeight: '500',
     };
@@ -191,8 +214,7 @@ export default function SignInScreen() {
     const socialButtonsStyle: ViewStyle = {
         flexDirection: 'row',
         justifyContent: 'center',
-        gap: 16,
-        marginTop: 16,
+        gap: spacing.md,
     };
 
     return (
@@ -205,72 +227,87 @@ export default function SignInScreen() {
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
             >
-                {/* Header Section */}
-                <View style={headerSectionStyle}>
-                    <View style={logoContainerStyle}>
-                        <Text style={logoTextStyle}>HSE</Text>
-                    </View>
-                    <Text style={titleStyle}>Welcome Back</Text>
-                    <Text style={subtitleStyle}>
-                        Sign in to continue your safety inspections
-                    </Text>
-                </View>
-
-                {/* Form Section */}
-                <View style={formStyle}>
-                    <CustomInput
-                        control={control}
-                        name='email'
-                        label='Email Address'
-                        placeholder='Enter your email'
-                        autoFocus
-                        autoCapitalize='none'
-                        keyboardType='email-address'
-                        autoComplete='email'
-                        leftIcon={<Ionicons name="mail" size={20} color={colors.textTertiary} />}
-                    />
-
-                    <CustomInput
-                        control={control}
-                        name='password'
-                        label='Password'
-                        placeholder='Enter your password'
-                        secureTextEntry
-                        leftIcon={<Ionicons name="lock-closed" size={20} color={colors.textTertiary} />}
-                    />
-
-                    {errors.root && (
-                        <View style={errorContainerStyle}>
-                            <Ionicons name="alert-circle" size={20} color={colors.error} />
-                            <Text style={errorTextStyle}>{errors.root.message}</Text>
+                <Animated.View
+                    style={[
+                        cardStyle,
+                        {
+                            opacity: fadeAnim,
+                            transform: [{ translateY: slideAnim }],
+                        },
+                    ]}
+                >
+                    {/* Header */}
+                    <View style={headerStyle}>
+                        <View style={logoStyle}>
+                            <Text style={logoTextStyle}>HSE</Text>
                         </View>
-                    )}
-                </View>
+                        <Text style={titleStyle}>Welcome Back</Text>
+                        <Text style={subtitleStyle}>
+                            Sign in to continue your safety inspections
+                        </Text>
+                    </View>
 
-                {/* Sign In Button */}
-                <CustomButton
-                    text='Sign In'
-                    onPress={handleSubmit(onSignIn)}
-                    fullWidth
-                    size="large"
-                />
+                    {/* Form */}
+                    <View style={formStyle}>
+                        <CustomInput
+                            control={control}
+                            name="email"
+                            label="Email Address"
+                            placeholder="Enter your email"
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                            autoComplete="email"
+                            leftIcon={
+                                <Ionicons name="mail" size={20} color={colors.textTertiary} />
+                            }
+                        />
 
-                {/* Sign Up Link */}
-                <Link href='/sign-up' style={linkStyle}>
-                    Don't have an account? Create one
-                </Link>
+                        <CustomInput
+                            control={control}
+                            name="password"
+                            label="Password"
+                            placeholder="Enter your password"
+                            secureTextEntry
+                            showPasswordToggle
+                            leftIcon={
+                                <Ionicons name="lock-closed" size={20} color={colors.textTertiary} />
+                            }
+                        />
 
-                {/* Divider */}
-                <View style={dividerStyle}>
-                    <View style={dividerLineStyle} />
-                    <Text style={dividerTextStyle}>OR</Text>
-                    <View style={dividerLineStyle} />
-                </View>
+                        {errors.root && (
+                            <View style={errorStyle}>
+                                <Ionicons name="alert-circle" size={20} color={colors.error} />
+                                <Text style={errorTextStyle}>{errors.root.message}</Text>
+                            </View>
+                        )}
+                    </View>
 
-                {/* Social Sign In */}
-                <View style={socialButtonsStyle}>
-                    <SignInWith strategy='oauth_google' />
-                </View>
+                    {/* Sign In Button */}
+                    <CustomButton
+                        text="Sign In"
+                        onPress={handleSubmit(onSignIn)}
+                        loading={isSubmitting}
+                        fullWidth
+                        size="lg"
+                    />
+
+                    {/* Sign Up Link */}
+                    <Link href="/sign-up" style={linkStyle}>
+                        Don't have an account? Create one
+                    </Link>
+
+                    {/* Divider */}
+                    <View style={dividerStyle}>
+                        <View style={dividerLineStyle} />
+                        <Text style={dividerTextStyle}>OR</Text>
+                        <View style={dividerLineStyle} />
+                    </View>
+
+                    {/* Social Sign In */}
+                    <View style={socialButtonsStyle}>
+                        <SignInWith strategy="oauth_google" />
+                    </View>
+                </Animated.View>
             </ScrollView>
         </KeyboardAvoidingView>
     );
